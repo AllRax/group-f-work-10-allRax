@@ -26,12 +26,14 @@ public class TaskManager {
     JMenuItem homeItem, settingsItem;
     private JPanel northPanel, southPanel, westPanel, centerPanel, listPanel, taskPanel;
     private JTable taskTable;
+
     private DefaultTableModel tableModel;
     private JTextField taskField, taskFieldDescription, editdueDate, dueDate, editTaskNameLabel, editTaskDescriptionField;
     private JToggleButton toggleButton = new JToggleButton("DARK MODE");
     private CardLayout cardLayout = new CardLayout();
     private ArrayList<Tasks> taskList = new ArrayList<>();
     private JCheckBox taskCheckBox, edit_checkBox;
+    private String testExportFilePath = null;
     private static final String DB_URL = "jdbc:mysql://localhost:3307/tasks";
     private static final String DB_USER = "root";
     private static final String DB_PASS = "";
@@ -464,50 +466,70 @@ public class TaskManager {
         }
     }
 
-    // NEW: Export the JTable data to a PDF report using iText
+
     private void exportToPDF() {
-        if (tableModel.getRowCount() == 0) {
-            JOptionPane.showMessageDialog(frame, "No data to export.", "Warning", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
+        String filePath;
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Save PDF");
         int userSelection = fileChooser.showSaveDialog(frame);
         if (userSelection == JFileChooser.APPROVE_OPTION) {
             File fileToSave = fileChooser.getSelectedFile();
-            String filePath = fileToSave.getAbsolutePath() + ".pdf";
-            try (FileOutputStream fos = new FileOutputStream(filePath)) {
-                Document document = new Document();
-                PdfWriter.getInstance(document, fos);
-                document.open();
-                Font titleFont = new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD, BaseColor.BLACK);
-                Paragraph title = new Paragraph("TASKS TABLE", titleFont);
-                title.setAlignment(Element.ALIGN_CENTER);
-                document.add(title);
-                document.add(new Paragraph("\n"));
-                Paragraph timestamp = new Paragraph("Report generated on: " + new java.util.Date());
-                timestamp.setAlignment(Element.ALIGN_CENTER);
-                document.add(timestamp);
-                document.add(new Paragraph("\n"));
-                PdfPTable pdfTable = new PdfPTable(tableModel.getColumnCount());
-                for (int i = 0; i < tableModel.getColumnCount(); i++) {
-                    PdfPCell cell = new PdfPCell(new Paragraph(tableModel.getColumnName(i), titleFont));
-                    cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                    cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-                    pdfTable.addCell(cell);
-                }
-                for (int i = 0; i < tableModel.getRowCount(); i++) {
-                    for (int j = 0; j < tableModel.getColumnCount(); j++) {
-                        pdfTable.addCell(tableModel.getValueAt(i, j).toString());
-                    }
-                }
-                document.add(pdfTable);
-                document.close();
-                JOptionPane.showMessageDialog(frame, "PDF exported successfully!");
-            } catch (Exception e) {
-                e.printStackTrace();
-                JOptionPane.showMessageDialog(frame, "Error exporting PDF: " + e.getMessage());
-            }
+            filePath = fileToSave.getAbsolutePath() + ".pdf";
+            exportToPDF(filePath);
         }
     }
+
+    public void exportToPDF(String filePath) {
+        if (tableModel.getRowCount() == 0) {
+            JOptionPane.showMessageDialog(frame, "No data to export.", "Warning", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            Document document = new Document();
+            PdfWriter.getInstance(document, fos);
+            document.open();
+            // Title with bold and larger font using iText's Font class
+            com.itextpdf.text.Font titleFont = new com.itextpdf.text.Font(com.itextpdf.text.Font.FontFamily.HELVETICA, 18, com.itextpdf.text.Font.BOLD, BaseColor.BLACK);
+            Paragraph title = new Paragraph("FACULTY OF SCIENCE AND TECHNOLOGY\nADVANCED OBJECT-ORIENTED PROGRAMMING CLASS ACTIVITY", titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            document.add(title);
+            document.add(new Paragraph("\n"));
+            // Timestamp
+            Paragraph timestamp = new Paragraph("Report generated on: " + new java.util.Date());
+            timestamp.setAlignment(Element.ALIGN_CENTER);
+            document.add(timestamp);
+            document.add(new Paragraph("\n"));
+            PdfPTable pdfTable = new PdfPTable(tableModel.getColumnCount());
+            // Add headers
+            for (int i = 0; i < tableModel.getColumnCount(); i++) {
+                PdfPCell cell = new PdfPCell(new Paragraph(tableModel.getColumnName(i), titleFont));
+                cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+                pdfTable.addCell(cell);
+            }
+            // Add rows
+            for (int i = 0; i < tableModel.getRowCount(); i++) {
+                for (int j = 0; j < tableModel.getColumnCount(); j++) {
+                    pdfTable.addCell(tableModel.getValueAt(i, j).toString());
+                }
+            }
+            document.add(pdfTable);
+            document.close();
+            JOptionPane.showMessageDialog(frame, "PDF exported successfully!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(frame, "Error exporting PDF: " + e.getMessage());
+        }
+    }
+
+
+    public JTable getTaskTable() {
+        return taskTable;
+    }
+
+    public DefaultTableModel getTableModel() {
+        return tableModel;
+    }
+
+
 }

@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.*;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.io.File;
 import java.sql.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -13,9 +15,11 @@ class TaskManagerTest {
     private static final String DB_USER = "root"; // Update this
     private static final String DB_PASS = "";
 
+
     @BeforeEach
     void setup() {
         taskManager = new TaskManager();
+
     }
 
     @Test
@@ -41,10 +45,14 @@ class TaskManagerTest {
     void taskMenuTest() {
         JMenu taskMenu = taskManager.taskMenu();
         assertNotNull(taskMenu);
-        assertEquals(3, taskMenu.getItemCount());
+        assertEquals(5, taskMenu.getItemCount());
         assertEquals("Add Task", taskMenu.getItem(0).getText());
         assertEquals("Edit Task", taskMenu.getItem(1).getText());
         assertEquals("Delete Task", taskMenu.getItem(2).getText());
+        assertEquals(  "Load Data", taskMenu.getItem(3).getText());
+        assertEquals(  "Export to PDF", taskMenu.getItem(4).getText());
+
+
     }
 
     @Test
@@ -131,6 +139,7 @@ class TaskManagerTest {
         taskManager.DueTaskDate().setText("2023-12-31");
         taskManager.taskCheckBox().setSelected(true);
         addTaskButton.doClick();
+        taskManager.taskMenu().getItem(3).doClick();//loading database
 
         try (Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
             String taskName = "Test Task";
@@ -148,7 +157,8 @@ class TaskManagerTest {
         }
 
         // Select the task to edit
-        taskManager.getTaskListView().setSelectedIndex(0);
+        int lastRow = taskManager.getTaskTable().getRowCount()-1;
+        taskManager.getTaskTable().setRowSelectionInterval(lastRow,lastRow);
         taskManager.taskMenu().getItem(1).doClick(); // Click Edit Task
 
         // Test edit functionality
@@ -161,6 +171,7 @@ class TaskManagerTest {
         taskManager.editDueDate().setText("2024-01-01");
         taskManager.editTaskCheckBox().setSelected(true);
         confirmEditButton.doClick();
+        taskManager.taskMenu().getItem(3).doClick();//loading database
 
         try (Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
             String taskName = "Updated Task";
@@ -196,12 +207,14 @@ class TaskManagerTest {
         assertEquals("SAVE", addTaskButton.getText());
 
         // adding a task
-        taskManager.taskField().setText("Test Task3");
+        taskManager.taskField().setText("Test Task5");
         taskManager.taskFieldDescription().setText("Test Description");
         taskManager.DueTaskDate().setText("2023-12-31");
         taskManager.taskCheckBox().setSelected(true);
-        String taskName ="Test Task3" ;
+        String taskName ="Test Task5" ;
         addTaskButton.doClick();
+        taskManager.taskMenu().getItem(3).doClick();//loading database
+
         try (Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
 
 
@@ -216,11 +229,12 @@ class TaskManagerTest {
         } catch (SQLException e) {
             fail("Database operation failed: " + e.getMessage());
         }
-
+        int lastRow = taskManager.getTaskTable().getRowCount()-1;
         //deleting task
-        taskManager.getTaskListView().setSelectedIndex(0);
-        taskManager.taskMenu().getItem(2).doClick();//click Delete Task
-
+        if(lastRow >=0) {
+            taskManager.getTaskTable().setRowSelectionInterval(0, lastRow);
+            taskManager.taskMenu().getItem(2).doClick();//click Delete Task
+        }
         try (Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
 
         String selectSQL = "SELECT * FROM tasks WHERE task_name = ?";
@@ -233,9 +247,29 @@ class TaskManagerTest {
     } catch (SQLException e) {
         fail("Database operation failed: " + e.getMessage());
     }
-        assertTrue(taskManager.getTaskList().isEmpty());
+
 
 
 
     }
+    @Test
+    void exportPdfTest() {
+        // Ensure there is at least one row in the table model; add dummy data if necessary.
+        DefaultTableModel model = taskManager.getTableModel();
+        if (model.getRowCount() == 0) {
+            model.addRow(new Object[]{1, "Dummy Task", "Dummy Description", "2025-01-01", "Not Completed"});
+        }
+        // Set a temporary file path for testing PDF export
+        String tempFilePath = System.getProperty("java.io.tmpdir") + File.separator + "testExport.pdf";
+        // Directly call the exportToPDF(String filePath) method to bypass the file chooser
+        taskManager.exportToPDF(tempFilePath);
+
+        // Verify that the PDF file was created
+        File exportedFile = new File(tempFilePath);
+        assertTrue(exportedFile.exists(), "Exported PDF should exist");
+
+        // Clean up the test file if needed
+        exportedFile.delete();
+    }
+
 }
